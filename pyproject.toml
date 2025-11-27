@@ -1,0 +1,28 @@
+[project]
+name = "speterlin-crypto"
+version = "0.1.0"
+description = "A Python package for a suite of quant-trading opportunities in crypto with API integration: Kucoin Exchange & Binance Exchange for storing crypto assets (cold storage) and spot and derivatives trading (hot storage), Coin Market Cap (CMC) & CoinGecko (CG) & Google Trends for data collection."
+authors = [
+  { name = "Sebastian Peterlin", email = "speterlin@smartxchange.xyz" },
+]
+license = { text = "MIT" }
+requires-python = ">=3.12"
+dependencies = [
+    "requests>=2.20",
+    "binance",
+    "kucoin",
+    "numpy",
+    "beautifulsoup4", # bs4
+    "pycoingecko",
+    "datetime",
+    "pandas>=2.0",
+    "pytrends",
+    "twilio" # ~
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+Homepage = "https://github.com/speterlin/speterlin-crypto"
