@@ -9,8 +9,8 @@ license = { text = "MIT" }
 requires-python = ">=3.12"
 dependencies = [
     "requests>=2.20",
-    "binance",
-    "kucoin",
+    "python-binance",
+    "python-kucoin",
     "numpy",
     "beautifulsoup4", # bs4
     "pycoingecko",
