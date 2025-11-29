@@ -8,5 +8,5 @@ pip install speterlin-crypto
 ```
 And then import package like this:
 ```python
-import speterlin_crypto as crypto
+import speterlin_crypto.module1 as crypto
 ```
