@@ -115,12 +115,13 @@ def get_coin_data_coinmarketcap(coin):
         market_data[id] = value
     return market_data
 
-# coinmarktcap detected automation 403 forbidden on 2023-05-02 04:27:25.340357 ~several days after implementation
+# coingecko detected automation 403 forbidden on 2023-05-02 04:27:25.340357 ~several days after implementation, also on 2025-12-08
 def get_coin_data_coingecko(coin):
     data = {}
     site_url = 'https://www.coingecko.com/en/coins/' + coin
-    resp = requests.get(site_url)
+    resp = requests.get(site_url) # 403 error persists even with: , headers=headers # headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10 7 4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36'}
     soup = bs.BeautifulSoup(resp.text, 'html.parser')
+    # table = soup.find("table", {"class": "tw-w-full"})
     divs = soup.findAll("div", {"class": "tw-flex tw-justify-between tw-w-full tw-h-10 tw-py-2.5 tw-border-b tw-border-gray-200 dark:tw-border-opacity-10 tw-pl-0"})
     market_data = {}
     for div in divs:
@@ -213,22 +214,24 @@ def get_coins_markets_coinmarketcap(pages=10): # refactor add market cap
                 # time.sleep(10)
     return data
 
-# coinmarktcap detected automation 403 forbidden on 2023-05-05 ~several days after implementation
+# coingecko detected automation 403 forbidden on 2023-05-05 ~several days after implementation, works on 2025-12-08
 def get_coins_markets_coingecko(pages=10):
     data = {}
     for page in range(1, pages+1):
         site_url = 'https://www.coingecko.com/?page=' + str(page)
         resp = requests.get(site_url)
         soup = bs.BeautifulSoup(resp.text, 'html.parser')
-        table = soup.find("table", {"class": "sort table mb-0 text-sm text-lg-normal table-scrollable"})
+        table = soup.find("table", {"class": "gecko-homepage-coin-table gecko-sticky-table sortable"}) # "sort table mb-0 text-sm text-lg-normal table-scrollable"
         for row in table.findAll('tr')[1:]:
-            market_cap_rank = float(row.find("td", {"class": "table-number tw-text-left text-xs cg-sticky-col cg-sticky-second-col tw-max-w-14 lg:tw-w-14"}).text.strip())
-            coin_id = row.find("a", {"class": "tw-flex tw-flex-auto tw-items-start md:tw-flex-row tw-flex-col"})['href'].split('/')[-1]
-            coin_symbol = row.find("span", {"class": "d-lg-inline font-normal text-3xs tw-ml-0 md:tw-ml-2 md:tw-self-center tw-text-gray-500 dark:tw-text-white dark:tw-text-opacity-60"}).text.strip().lower()
-            current_price = float(row.find("div", {"class": "tw-flex-1"}).text.strip().replace('$',"").replace(',',""))
+            market_cap_rank = float(row.find("td", {"class": "tw-sticky tw-left-[34px] gecko-sticky"}).text.strip()) # "table-number tw-text-left text-xs cg-sticky-col cg-sticky-second-col tw-max-w-14 lg:tw-w-14"
+            coin_id_and_symbol_a = row.find("a", {"class": "tw-flex tw-items-center tw-w-full"})
+            coin_id = coin_id_and_symbol_a['href'].split('/')[-1] # {"class": "tw-flex tw-flex-auto tw-items-start md:tw-flex-row tw-flex-col"}
+            coin_symbol = coin_id_and_symbol_a.find("div", {"class": "tw-block 2lg:tw-inline tw-text-xs tw-leading-4 tw-text-gray-500 dark:tw-text-moon-200 tw-font-medium"}).text.strip().lower() # row.find("span", {"class": "d-lg-inline font-normal text-3xs tw-ml-0 md:tw-ml-2 md:tw-self-center tw-text-gray-500 dark:tw-text-white dark:tw-text-opacity-60"}).text.strip().lower()
+            current_data_tds = row.find_all("td", {"class": "tw-text-end"})
+            current_price = float(current_data_tds[0]['data-sort']) # float(row.find("td", {"class": "tw-text-end"})['data-sort']) # float(row.find("div", {"class": "tw-flex-1"}).text.strip().replace('$',"").replace(',',""))
             # print(str(market_cap_rank) + ": " + coin_id + "; " + coin_symbol + "; " + str(current_price))
-            current_24h_volume = float(row.find("td", {"class": "td-liquidity_score lit text-right col-market"}).text.strip().replace('$',"").replace(',',"")) if row.find("td", {"class": "td-liquidity_score lit text-right col-market"}).text.strip() != '-' else 0
-            current_market_cap = float(row.find("td", {"class": "td-market_cap cap col-market cap-price text-right"}).text.strip().replace('$',"").replace(',',""))
+            current_24h_volume = float(current_data_tds[5]['data-sort']) # float(row.find("td", {"class": "tw-text-end"})['data-sort']) # float(row.find("td", {"class": "td-liquidity_score lit text-right col-market"}).text.strip().replace('$',"").replace(',',"")) if row.find("td", {"class": "td-liquidity_score lit text-right col-market"}).text.strip() != '-' else 0
+            current_market_cap = float(current_data_tds[6]['data-sort']) # float(row.find("td", {"class": "td-market_cap cap col-market cap-price text-right"}).text.strip().replace('$',"").replace(',',""))
             data[coin_id] = {"symbol": coin_symbol, "market_cap_rank": market_cap_rank, "price": current_price, "24h_volume": current_24h_volume, "market_cap": current_market_cap}
     return data
 
@@ -364,7 +367,7 @@ def kucoin_trade_coin_usdt(symbol_pair, coin, trade=None, side=None, usdt_invest
     message_body = "Q Trading @crypto: " + symbol_pair + " " + (trade if trade else side) + " at price_in_btc " + str(price_in_btc) + " and price $" + str(price) + " and quantity " + str(quantity) + ", " + str(other_notes) + ", " + trade_notes + (" :)" if trade_notes == "Filled" else " :/" if trade_notes == "Partially filled" else " :(")
     color_start, color_end = ["\033[92m", "\033[0m"] if trade_notes in ["Filled", "~Filled"] else ["\033[33m", "\033[0m"] if trade_notes == "Partially filled" else ["\033[91m", "\033[0m"] # green yellow red # last condition is if "Not filled" or "BTrade Error"
     print("executed kucoin_trade_coin_usdt()\n" + color_start + message_body + color_end + "\n\033[1mOrder:\033[0m " + str(order) + "\n\033[1mOpen orders:\033[0m" + str(open_orders))
-    twilio_message = _fetch_data(twilio_client.messages.create, params={'to': '+14158028566', 'from_': '+12069845866', 'body': message_body}, error_str=" - Twilio msg error to: " + "+14158028566" + " on: " + str(datetime.now()), empty_data=None) # No need to add message_body here and other cases to error_str since already printed in line before # maybe add logic here and other locations to deal with error - possibly e-mailing through another client
+    twilio_message = _fetch_data(twilio_client.messages.create, params={'to': twilio_phone_to, 'from_': twilio_phone_from, 'body': message_body}, error_str=" - Twilio msg error to: " + twilio_phone_to + " on: " + str(datetime.now()), empty_data=None) # No need to add message_body here and other cases to error_str since already printed in line before # maybe add logic here and other locations to deal with error - possibly e-mailing through another client
     return [quantity, price, price_in_btc, order, open_orders, trade_notes] #
 
 # can add option for market or limit, but for now only limit orders, can also add options for different kind of timeInForce options, also add option to trade on another exchange if necessary or another base currency, maybe add option for checking 24h_vol, price, pump and dump so can have logic here and return value block_trade for logic at location of trade, returning price_in_btc since a bit more accurate than coingecko price
@@ -402,7 +405,7 @@ def binance_trade_coin_btc(symbol_pair, trade=None, side=None, btc_invest=None, 
     message_body = "Q Trading @crypto: " + symbol_pair + " " + (trade if trade else side) + " at price_in_btc " + str(price_in_btc) + " and price $" + str(price) + " and quantity " + str(quantity) + ", " + str(other_notes) + ", " + trade_notes + (" :)" if trade_notes == "Filled" else " :/" if trade_notes == "Partially filled" else " :(")
     color_start, color_end = ["\033[92m", "\033[0m"] if trade_notes in ["Filled", "~Filled"] else ["\033[33m", "\033[0m"] if trade_notes == "Partially filled" else ["\033[91m", "\033[0m"] # green yellow red # last condition is if "Not filled" or "BTrade Error"
     print("executed binance_trade_coin_btc()\n" + color_start + message_body + color_end + "\n\033[1mOrder:\033[0m " + str(order) + "\n\033[1mOpen orders:\033[0m" + str(open_orders))
-    twilio_message = _fetch_data(twilio_client.messages.create, params={'to': '+14158028566', 'from_': '+12069845866', 'body': message_body}, error_str=" - Twilio msg error to: " + "+14158028566" + " on: " + str(datetime.now()), empty_data=None) # No need to add message_body here and other cases to error_str since already printed in line before # maybe add logic here and other locations to deal with error - possibly e-mailing through another client
+    twilio_message = _fetch_data(twilio_client.messages.create, params={'to': twilio_phone_to, 'from_': twilio_phone_from, 'body': message_body}, error_str=" - Twilio msg error to: " + twilio_phone_to + " on: " + str(datetime.now()), empty_data=None) # No need to add message_body here and other cases to error_str since already printed in line before # maybe add logic here and other locations to deal with error - possibly e-mailing through another client
     return [quantity, price, price_in_btc, order, open_orders, trade_notes] # can add check if order['fills'] 'qty'(s) equal quantity
 
 def kucoin_check_24h_vol_and_price_in_usdt(symbol_pair, kucoin_usdt_24h_vol, price, kucoin_price, kucoin_usdt_24h_vol_min=50000, kucoin_price_mismatch_limit=0.05):
@@ -410,7 +413,7 @@ def kucoin_check_24h_vol_and_price_in_usdt(symbol_pair, kucoin_usdt_24h_vol, pri
     if kucoin_usdt_24h_vol_too_low or kucoin_price_mismatch:
         message_body = "Q Trading @crypto: " + symbol_pair + (" Kucoin 24h vol is less than " + str(kucoin_usdt_24h_vol_min) + "," if kucoin_usdt_24h_vol_too_low else "") + (" Kucoin price is more than " + str(kucoin_price_mismatch_limit*100) + "% different than CoinGecko price" if kucoin_price_mismatch else "") + " on: " + str(datetime.now()) + ", not buying :(" + (", but maybe arbitrage :/" if kucoin_price_mismatch else "") # :/ at end for logic
         print("\033[95m" + message_body + "\033[0m")
-        twilio_message = _fetch_data(twilio_client.messages.create, params={'to': '+14158028566', 'from_': '+12069845866', 'body': message_body}, error_str=" - Twilio msg error to: " + "+14158028566" + " on: " + str(datetime.now()), empty_data=None)
+        twilio_message = _fetch_data(twilio_client.messages.create, params={'to': twilio_phone_to, 'from_': twilio_phone_from, 'body': message_body}, error_str=" - Twilio msg error to: " + twilio_phone_to + " on: " + str(datetime.now()), empty_data=None)
     return [kucoin_usdt_24h_vol_too_low, kucoin_price_mismatch]
 
 # if add other exchanges can change name to exchange_check_btc_24h_vol_and_price, maybe add pump and dump check
@@ -419,7 +422,7 @@ def binance_check_24h_vol_and_price_in_btc(symbol_pair, binance_btc_24h_vol_in_b
     if binance_btc_24h_vol_in_btc_too_low or binance_price_in_btc_mismatch:
         message_body = "Q Trading @crypto: " + symbol_pair + (" Binance 24h vol is less than " + str(binance_btc_24h_vol_in_btc_min) + "," if binance_btc_24h_vol_in_btc_too_low else "") + (" Binance price is more than " + str(binance_price_in_btc_mismatch_limit*100) + "% different than CoinGecko price" if binance_price_in_btc_mismatch else "") + " on: " + str(datetime.now()) + ", not buying :(" + (", but maybe arbitrage :/" if binance_price_in_btc_mismatch else "") # :/ at end for logic
         print("\033[95m" + message_body + "\033[0m")
-        twilio_message = _fetch_data(twilio_client.messages.create, params={'to': '+14158028566', 'from_': '+12069845866', 'body': message_body}, error_str=" - Twilio msg error to: " + "+14158028566" + " on: " + str(datetime.now()), empty_data=None)
+        twilio_message = _fetch_data(twilio_client.messages.create, params={'to': twilio_phone_to, 'from_': twilio_phone_from, 'body': message_body}, error_str=" - Twilio msg error to: " + twilio_phone_to + " on: " + str(datetime.now()), empty_data=None)
     return [binance_btc_24h_vol_in_btc_too_low, binance_price_in_btc_mismatch]
 
 # if only for exchange arbitrage, no shorting and assuming can buy and sell at either exchange/market
@@ -862,7 +865,7 @@ def portfolio_trading(portfolio, exchange, paper_trading=True, portfolio_usdt_va
         print("<< " + str(datetime.now()) + ", paper trading: " + str(paper_trading) + ", portfolio btc value (-)change from max limit: " + str(portfolio_usdt_value_negative_change_from_max_limit) + ", portfolio current roi restart: " + str(portfolio_current_roi_restart) + ", download and save coins data: " + str(download_and_save_coins_data) + " >>") #  + ", buying disabled: " + str(buying_disabled)
         start_time = time.time()
         if (datetime.utcnow().hour == 12) and (datetime.utcnow().minute < 4):
-            twilio_message = _fetch_data(twilio_client.messages.create, params={'to': '+14158028566', 'from_': '+12069845866', 'body': "Q Trading @crypto: running on " + str(datetime.now()) + " :)"}, error_str=" - Twilio msg error to: " + "+14158028566" + " on: " + str(datetime.now()), empty_data=None)
+            twilio_message = _fetch_data(twilio_client.messages.create, params={'to': twilio_phone_to, 'from_': twilio_phone_from, 'body': "Q Trading @crypto: running on " + str(datetime.now()) + " :)"}, error_str=" - Twilio msg error to: " + twilio_phone_to + " on: " + str(datetime.now()), empty_data=None)
         if (datetime.utcnow().hour == 0) and (datetime.utcnow().minute < 12): # (datetime.utcnow().hour == 0) and (datetime.utcnow().minute < 4): # since runs every 4 minutes
             todays_date = datetime.now()
             df_coins_interval_today = get_saved_coins_data(date=todays_date.strftime('%Y-%m-%d'))
@@ -884,7 +887,7 @@ def portfolio_trading(portfolio, exchange, paper_trading=True, portfolio_usdt_va
                 portfolio = portfolio_align_balance_with_exchange(portfolio, exchange_assets=assets, exchange=exchange) if not assets.empty else portfolio
             portfolio = run_portfolio_rr(portfolio=portfolio, start_day=(todays_date - timedelta(days=DAYS)), end_day=todays_date, paper_trading=paper_trading) # On 08/08/2020: rr algorithm went from analyzing top 250 coins by Market Cap to top 1000 coins by Market Cap # rr_buy=(True if not buying_disabled else False),
             save_portfolio_backup(portfolio) # very unlikely to fail before next save_portfolio_backup() but still saving because precautionary and updating portfolio
-            twilio_message = _fetch_data(twilio_client.messages.create, params={'to': '+14158028566', 'from_': '+12069845866', 'body': "Q Trading @crypto: Coin data saved and run_portfolio_rr executed on: " + datetime.now().strftime('%Y-%m-%d') + " :)"}, error_str=" - Twilio msg error to: " + "+14158028566" + " on: " + str(datetime.now()), empty_data=None) # not sms messaging assets value since would require more (unnecessary) processing/logic since have Binance App on phone
+            twilio_message = _fetch_data(twilio_client.messages.create, params={'to': twilio_phone_to, 'from_': twilio_phone_from, 'body': "Q Trading @crypto: Coin data saved and run_portfolio_rr executed on: " + datetime.now().strftime('%Y-%m-%d') + " :)"}, error_str=" - Twilio msg error to: " + twilio_phone_to + " on: " + str(datetime.now()), empty_data=None) # not sms messaging assets value since would require more (unnecessary) processing/logic since have Binance App on phone
         for coin in portfolio['open'].index:
             # better to have price from coingecko (crypto insurance companies use it, and it represents a wider more accurate picture of the price, also if price hits tsl/sl temporarily on one exchange might be due to a demand/supply anomaly), also common to trade to btc then send btc to another exchange and transfer to fiat there, issue: coingecko only updates every 4 minutes
             # coin_data, price_in_btc = _fetch_data(get_coin_data, params={'coin': coin}, error_str=" - No " + "" + " coin data for: " + coin + " on: " + str(datetime.now()), empty_data={}), None
