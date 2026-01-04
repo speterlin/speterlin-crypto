@@ -87,8 +87,8 @@ def get_coin_data_coinmarketcap(coin):
     site_url = 'https://www.coinmarketcap.com/currencies/' + coin
     resp = requests.get(site_url, headers=headers)
     soup = bs.BeautifulSoup(resp.text, 'html.parser')
-    # divs = soup.findAll("div", {"class": "sc-8755d3ba-0 sc-d6430309-0 boyZcw"}) #
-    # divs = soup.findAll("div", {"class": "sc-8755d3ba-0 iausdo"})
+    # divs = soup.find_all("div", {"class": "sc-8755d3ba-0 sc-d6430309-0 boyZcw"}) #
+    # divs = soup.find_all("div", {"class": "sc-8755d3ba-0 iausdo"})
     span_price = soup.find("span", {"class": "sc-65e7f566-0 WXGwg base-text"}) if soup.find("span", {"class": "sc-65e7f566-0 WXGwg base-text"}) else soup.find("span", {"class": "abbreviation-price"}) # 2025-07-01 some reason bitcoin has "sc-65e7f566-0 esyGGG base-text" # changed 2024-11-29 "sc-d1ede7e3-0 fsQm base-text" changed 2024-05-24 "sc-f70bb44c-0 jxpCgO base-text" "sc-16891c57-0 dxubiK base-text" # "sc-16891c57-0 imoWES coin-stats-header"
     price = span_price.text.strip().replace('$',"").replace(',',"") if span_price and span_price.text else float("NaN")
     market_data['price'] = float(price)
@@ -96,9 +96,9 @@ def get_coin_data_coinmarketcap(coin):
     if not dl_statistics:
         print("Error scraping coinmarketcap data for coin: " + coin)
         return market_data
-    divs = dl_statistics.findAll('div') # convert_value True
+    divs = dl_statistics.find_all('div') # convert_value True
     times_table = {'P': 1e15, 'T': 1e12, 'B': 1e9, 'M': 1e6, 'K': 1e3}
-    divs_major = dl_statistics.findAll('div', class_ = "sc-65e7f566-0 eQBACe")
+    divs_major = dl_statistics.find_all('div', class_ = "sc-65e7f566-0 eQBACe")
     max_supply_id = "_".join(divs_major[-1].find("div", class_="LongTextDisplay_content-wrapper__2ho_9").text.strip().replace('.', "").split()).lower()
     max_supply_value = (divs_major[-1].find("div", class_="BasePopover_base__T5yOf popover-base") if divs_major[-1].find("div", class_="BasePopover_base__T5yOf popover-base") else divs_major[-1].find("div", class_="CoinMetrics_overflow-content__tlFu7")).text.strip().replace('$',"").replace(',',"").replace('%',"").replace('#',"").replace('(',"").replace(')',"").split(" ")[0]
     try:
@@ -108,7 +108,7 @@ def get_coin_data_coinmarketcap(coin):
         max_supply_value = (divs_major[-1].find("div", class_="BasePopover_base__T5yOf popover-base") if divs_major[-1].find("div", class_="BasePopover_base__T5yOf popover-base") else divs_major[-1].find("div", class_="CoinMetrics_overflow-content__tlFu7")).text.strip().replace('$',"").replace(',',"").replace('%',"").replace('#',"").replace('(',"").replace(')',"").replace('\xa0'," ").split(" ")[-1] # assuming it's this error: {symbol} {quantity} MNT 1B instead of {quantity} {symbol} 1B MNT # '\xa0' is a non-break space
         max_supply_value = float("NaN") if max_supply_value in ["∞", "-", "--", "No Data", "No"] else float(max_supply_value[:-1]) * times_table[max_supply_value[-1]] if re.findall(r"["+"".join(times_table.keys())+"]", max_supply_value) else float(max_supply_value) # value = float("NaN")
     market_data[max_supply_id] = max_supply_value
-    # divs = soup.findAll("div", {"class": "sc-aef7b723-0 RdAHw"})
+    # divs = soup.find_all("div", {"class": "sc-aef7b723-0 RdAHw"})
     for div in divs:
         # count = 0 # print(count) # count += 1
         # if convert_value:
@@ -135,7 +135,7 @@ def get_coin_data_coingecko(coin):
     resp = requests.get(site_url) # 403 error persists even with: , headers=headers # headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10 7 4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36'}
     soup = bs.BeautifulSoup(resp.text, 'html.parser')
     # table = soup.find("table", {"class": "tw-w-full"})
-    divs = soup.findAll("div", {"class": "tw-flex tw-justify-between tw-w-full tw-h-10 tw-py-2.5 tw-border-b tw-border-gray-200 dark:tw-border-opacity-10 tw-pl-0"})
+    divs = soup.find_all("div", {"class": "tw-flex tw-justify-between tw-w-full tw-h-10 tw-py-2.5 tw-border-b tw-border-gray-200 dark:tw-border-opacity-10 tw-pl-0"})
     market_data = {}
     for div in divs:
         id = "_".join(div.text.strip().split()[0].split()).lower()
@@ -188,23 +188,23 @@ def get_coins_markets_coinmarketcap(pages=10): # refactor add market cap
         # resp = requests.get(site_url)
         soup = bs.BeautifulSoup(resp.text, 'html.parser')
         table = soup.find("table", class_=lambda x: x and "cmc-table" in x) # chatgpt recommendation 2025-07-08 since changed again 2025-07-03 # changed ~2025-06-23 "sc-db1da501-3 ccGPRR cmc-table" # changed ~2025-04-15 "sc-db1da501-3 kTEDDd cmc-table" # changed 2025-03-01 (noticed on 2025-03-24) "sc-e66afe2c-3 gDwpBm cmc-table" # changed 2025-02-28 "sc-936354b2-3 tLXcG cmc-table" changed 2024-11-29 "sc-7b3ac367-3 etbcea cmc-table" changed 2024-07-30 "sc-963bde9f-3 fGUAUU cmc-table"# changed 2024-07-19 "sc-963bde9f-3 dzympI cmc-table"# changed 2024-05-24 "sc-ae0cff98-3 ipWPGi cmc-table" "sc-14cb040a-3 dsflYb cmc-table" "sc-feda9013-3 ePzlNg cmc-table" # "class": "sc-66133f36-3 etbEmy cmc-table" "sc-b6abf4b4-3 gTnkjE cmc-table"}) # idx,  0, # "sc-996d6db8-3 cOXNvh cmc-table" # "sc-beb003d5-3 ieTeVa cmc-table" # need to change this up every once in a while
-        for row in table.findAll('tr')[1:]:
+        for row in table.find_all('tr')[1:]: # page 'coinmarketcap-20-index-dtf' is populating 1st position
             # print(row)
-            market_cap_rank += 1
-            tds = row.findAll("td")
+            tds = row.find_all("td")
             a_link = row.find("a", {"class": "cmc-link"})
-            if a_link.findAll("p"):
-                links = a_link.findAll("p") # links = a_link.findAll("p") if a_link.findAll("p") else a_link.findAll("span")
+            if a_link.find_all("p"):
+                links = a_link.find_all("p") # links = a_link.find_all("p") if a_link.find_all("p") else a_link.find_all("span")
                 coin_id = "-".join(links[0].text.strip().split()).lower() # mayve refactor error for coins like tether (combines tether-usdt instead of actual name tether) # coin_id = links[0].text.strip().lower() if links[0].text.strip() else links[0].text.strip()
                 coin_symbol = links[1].text.strip().lower() # coin_symbol = links[1].text.strip().lower()
             else:
-                links = a_link.findAll("span")
+                links = a_link.find_all("span")
                 coin_id = "-".join(links[1].text.strip().split()).lower()
                 coin_symbol = links[2].text.strip().lower()
                 # price =
             # print(coin_id + ": " + coin_symbol + ", " + str(tds[3].text.strip()))
+            market_cap_rank = (market_cap_rank + 1) if coin_id != 'coinmarketcap-20-index-dtf' else market_cap_rank # market_cap_rank = float(tds[1].text.strip()) if tds[1].text.strip() else float("NaN") #
             try:
-                price = float(tds[3].text.strip().replace('$',"").replace(',',"")) if tds[3].text.strip() else float("NaN")
+                price = float(tds[3].text.strip().replace('$',"").replace(',',"")) # if tds[3].text.strip() else float("NaN")
             except Exception as e:
                 price = float("NaN")
                 print(str(e) + " - Price issue(s) for coin: " + coin_id + " with market cap rank: " + str(market_cap_rank))
@@ -230,7 +230,7 @@ def get_coins_markets_coingecko(pages=10):
         resp = requests.get(site_url)
         soup = bs.BeautifulSoup(resp.text, 'html.parser')
         table = soup.find("table", {"class": "gecko-homepage-coin-table gecko-sticky-table sortable"}) # "sort table mb-0 text-sm text-lg-normal table-scrollable"
-        for row in table.findAll('tr')[1:]:
+        for row in table.find_all('tr')[1:]:
             market_cap_rank = float(row.find("td", {"class": "tw-sticky tw-left-[34px] gecko-sticky"}).text.strip()) # "table-number tw-text-left text-xs cg-sticky-col cg-sticky-second-col tw-max-w-14 lg:tw-w-14"
             coin_id_and_symbol_a = row.find("a", {"class": "tw-flex tw-items-center tw-w-full"})
             coin_id = coin_id_and_symbol_a['href'].split('/')[-1] # {"class": "tw-flex tw-flex-auto tw-items-start md:tw-flex-row tw-flex-col"}
