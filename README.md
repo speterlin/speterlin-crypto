@@ -19,7 +19,7 @@ For the following calls set up your Python virtual environment shell (where you 
 portfolio = crypto.get_saved_portfolio_backup("portfolio_usdt_rr_10_-10_20_-0.3_0.5_-0.2_1000_100_1000_1000_True_False_False_{'usdt': 10000}_2023-03-12_to_" + datetime.now().strftime('%Y-%m-%d'))
 
 # View open positions in two rows
-print(str(portfolio['open'].drop(['position', 'kucoin_usdt_24h_vol', 'gtrends_15d', 'rank_rise_d', 'tsl_armed', 'tsl_max_price(btc)', 'trade_notes', 'other_notes'], axis=1)) + "\n" + str(portfolio['open'].drop(['symbol', +
+print(str(portfolio['open'].drop(['position', 'kucoin_usdt_24h_vol', 'gtrends_15d', 'rank_rise_d', 'tsl_armed', 'tsl_max_price(btc)', 'trade_notes', 'other_notes'], axis=1)) + "\n" + str(portfolio['open'].drop(['symbol',
 'buy_date', 'buy_price', 'buy_price(btc)', 'balance', 'current_date', 'current_price(btc)', 'current_roi(btc)'], axis=1)))
 
 # View sold positions
