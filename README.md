@@ -11,7 +11,7 @@ And then import package like this:
 import speterlin_crypto.module1 as crypto
 ```
 
-For the following calls set up your Python virtual environment shell (where you quant trade or analyze stocks) and import packages like in [quant-trading#Python script for Crypto](https://github.com/speterlin/quant-trading?tab=readme-ov-file#python-script-for-crypto-programscryptocrypto_kucoin_your_username)
+For the following calls set up your Python virtual environment shell (where you quant trade or analyze crypto) and import packages like in [quant-trading#Python script for Crypto](https://github.com/speterlin/quant-trading?tab=readme-ov-file#python-script-for-crypto-programscryptocrypto_kucoin_your_username)
 
 ## Get and analyze your saved Portfolio
 
