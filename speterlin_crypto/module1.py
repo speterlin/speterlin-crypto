@@ -1,3 +1,24 @@
+# Standard library imports (in order of appearance then import/from)
+import time
+import json
+import re # from collections import Counter
+import math
+import os # os.getcwd() # os.chdir()
+from collections import Counter
+
+# Third Party imports (in order of appearance then import/from)
+import requests
+import numpy as np
+import bs4 as bs
+import pandas as pd
+from binance.exceptions import BinanceAPIException, BinanceRequestException #, BinanceWithdrawException, maybe refactor and add for executing binance_trade_coin_btc exceptions (also need logic for these) for BinanceOrderException, BinanceOrderMinAmountException, BinanceOrderMinPriceException, BinanceOrderMinTotalException, BinanceOrderUnknownSymbolException, BinanceOrderInactiveSymbolException
+from kucoin.exceptions import KucoinAPIException, KucoinRequestException
+from pycoingecko import CoinGeckoAPI
+from datetime import datetime, timedelta
+from pytrends.request import TrendReq
+
+# Local Imports
+
 __all__ = [
     "_fetch_data",
     "trendline",
@@ -10,7 +31,7 @@ __all__ = [
     # "get_coins_markets_coingecko",
     "save_coins_data",
     "get_saved_coins_data",
-    "get_google_trends",
+    "get_google_trends_pt",
     "get_kucoin_pairs",
     "get_binance_pairs",
     "kucoin_trade_coin_usdt",
@@ -34,11 +55,7 @@ __all__ = [
     "save_portfolio_backup",
     "get_saved_portfolio_backup",
 ]
-
-import requests
-import time
-from binance.exceptions import BinanceAPIException, BinanceRequestException #, BinanceWithdrawException, maybe refactor and add for executing binance_trade_coin_btc exceptions (also need logic for these) for BinanceOrderException, BinanceOrderMinAmountException, BinanceOrderMinPriceException, BinanceOrderMinTotalException, BinanceOrderUnknownSymbolException, BinanceOrderInactiveSymbolException
-from kucoin.exceptions import KucoinAPIException, KucoinRequestException
+cg = CoinGeckoAPI()
 
 # same as in eventregistry/quant-trading/crypto.py
 # need to have ndg-httpsclient, pyopenssl, and pyasn1 (latter 2 are normally already installed) installed to deal with Caused by SSLError(SSLError("bad handshake: SysCallError(60, 'ETIMEDOUT')",),) according to https://stackoverflow.com/questions/33410577 (should also check tls_version and maybe unset https_proxy from commandline), but doesn't seem to work
@@ -56,16 +73,12 @@ def _fetch_data(func, params, error_str, empty_data, retry=True):
             data = _fetch_data(func, params, error_str, empty_data, retry=False)
     return data
 
-import numpy as np
-
 # data is dataframe column series
 def trendline(data, order=1, reverse_to_ascending=False):
     data_index_values = data.index.values[::-1] if reverse_to_ascending else data.index.values
     coeffs = np.polyfit(data_index_values, list(data), order)
     slope = coeffs[-2]
     return float(slope)
-
-import bs4 as bs
 
 # coinmarktcap detected automation 403 forbidden after 1 day
 def get_coin_data_coinmarketcap(coin):
@@ -134,11 +147,6 @@ def get_coin_data_coingecko(coin):
     data["symbol"] = soup.find("span", {"class": "tw-font-normal tw-text-gray-500 dark:tw-text-white dark:tw-text-opacity-60 tw-text-base tw-mt-0.5"}).text.strip().lower()
     data['market_data'] = {**{"current_price": {"usd": current_price, "btc": current_price_in_btc}, "market_cap": {"usd": current_market_cap}}, **market_data}
     return data
-
-from pycoingecko import CoinGeckoAPI
-from datetime import datetime, timedelta
-
-cg = CoinGeckoAPI()
 
 # date is a string in format '%d-%m-%Y', make sure historical time is on utc time, CoinGecko historical saves in UTC time and uses opening price for that day, refactor - can return [market_data_in_coin_data, data] to simplify logic issues later, can also move logic of retry_current_if_no_historical_market_data inside function so all of the logic is inside function
 def get_coin_data(coin, date=None, historical=False, retry_current_if_no_historical_market_data=False):
@@ -235,8 +243,6 @@ def get_coins_markets_coingecko(pages=10):
             data[coin_id] = {"symbol": coin_symbol, "market_cap_rank": market_cap_rank, "price": current_price, "24h_volume": current_24h_volume, "market_cap": current_market_cap}
     return data
 
-import pandas as pd
-
 def save_coins_data(date, pages=10): # date is in format '%Y-%m-%d' # maybe refactor and add date if code block runs at a datetime.now() which is close to the next day, if runs longer no need to add date since market runs 24/7 # number of pages should be constant
     coins = _fetch_data(get_coins_markets_coinmarketcap, params={'pages': pages}, error_str=" - No " + "" + " coins markets data with pages: " + str(pages) + " on: " + str(datetime.now()), empty_data={}) # refactor all - ensure error_str have date: # 'currency': 'btc',
     df_coins = pd.DataFrame(columns = ["Market Cap Rank", "Facebook Likes", "Twitter Followers", "Reddit Subscribers", "Reddit Posts & Comments 48h", "Developer Stars", "Developer Issues", "Alexa Rank", "Price", "Price (BTC)", "Market Cap", "24h Volume", "24h Volume / Market Cap", "Fully Diluted Valuation", "Supply: Circulating", "Supply: Max", "Supply: Total"]) # maybe refactor and add columns which measure other KPIs (look to stocks.py for motivation)
@@ -287,9 +293,7 @@ def get_saved_coins_data(date): # date is a string in format '%Y-%m-%d'
         df_coins_historical = pd.DataFrame()
     return df_coins_historical
 
-from pytrends.request import TrendReq
-
-def get_google_trends(kw_list, from_date, to_date, trend_days=270, cat=0, geo='', tz=480, gprop='', hl='en-US', isPartial_col=False, from_start=False, scale_cols=True): # trend_days max is around 270 # category to narrow results # geo e.g 'US', 'UK' # tz = timezone offset default is 360 which is US CST (UTC-6), PST is 480 (assuming UTC-8*60) # hl language default is en-US # gprop : filter results to specific google property like 'images', 'news', 'youtube' or 'froogle' # overlap=100, sleeptime=1, not doing multiple searches # other variables: timeout=(10,25), proxies=['https://34.203.233.13:80',], retries=2, backoff_factor=0.1, requests_args={'verify':False}
+def get_google_trends_pt(kw_list, from_date, to_date, trend_days=270, cat=0, geo='', tz=480, gprop='', hl='en-US', isPartial_col=False, from_start=False, scale_cols=True): # trend_days max is around 270 # category to narrow results # geo e.g 'US', 'UK' # tz = timezone offset default is 360 which is US CST (UTC-6), PST is 480 (assuming UTC-8*60) # hl language default is en-US # gprop : filter results to specific google property like 'images', 'news', 'youtube' or 'froogle' # overlap=100, sleeptime=1, not doing multiple searches # other variables: timeout=(10,25), proxies=['https://34.203.233.13:80',], retries=2, backoff_factor=0.1, requests_args={'verify':False}
     data = pd.DataFrame()
     if len(kw_list) != 1: # not doing multirange_interest_over_time: len(kw_list)==0 or len(kw_list)>5
         print("Error: The keyword list must be 1, not doing multirange_interest_over_time") # be > 0 and can contain at most 5 words
@@ -310,8 +314,6 @@ def get_google_trends(kw_list, from_date, to_date, trend_days=270, cat=0, geo=''
         data.drop('isPartial', axis=1, inplace=True)
     return data
 
-import json
-
 # Currently, the KuCoin operations are not licensed in the USA; hence, it doesn’t have to report to IRS. However, the company states that it may disclose personal data at the request of government authorities. Therefore, you should report any income you generate from KuCoin to tax authorities.
 # Kucoin API is restricted for each account, the request rate limit is 45 times/3s
 def get_kucoin_pairs(): # pair="USDT"
@@ -330,8 +332,6 @@ def get_binance_pairs():
         if ('price' in pair_price) and pair_price['price']:
             binance_pairs_with_price_current[pair_price['symbol']] = {'price': float(pair_price['price'])}
     return binance_pairs_with_price_current
-
-import math
 
 def kucoin_trade_coin_usdt(symbol_pair, coin, trade=None, side=None, usdt_invest=None, quantity=None, price_in_btc=None, paper_trading=True, open_time=5, other_notes=None):
     if not (trade or side):
@@ -433,8 +433,6 @@ def exchange_check_arbitrage(price, other_price, arbitrage_roi_min=0.05):
         return [True, arbitrage_opportunity]
     return [False, arbitrage_opportunity]
 
-from collections import Counter
-
 def kucoin_usdt_check_arbitrages(pages=10):
     # coins_symbol_to_id, binance_btc_pairs_api_less_same_symbol_and_api_errors = {}, []
     arbitrage_pairs = Counter()
@@ -475,8 +473,6 @@ def binance_btc_check_arbitrages(pages=1):
             if arbitrage:
                 arbitrage_pairs[symbol_pair] = arbitrage_opportunity
     return arbitrage_pairs
-
-import re # from collections import Counter
 
 def update_portfolio_postions_back_testing(portfolio, stop_day, end_day, **params):
     STOP_LOSS = portfolio['constants']['sl']
@@ -539,7 +535,7 @@ def update_portfolio_postions_back_testing(portfolio, stop_day, end_day, **param
                         if END_DAY_OPEN_POSITIONS_GTRENDS_15D:
                             coin_search_term = coin if not re.search('-', coin) else coin.split("-")[0]  # precautionary returns coin or coin symbol, assuming coins are unique to tickers / other similar search terms
                             # using Pytrends (Cryptory is deprecated doesn't work after Python 3.6-3.8) since good data and can retrieve other metrics like reddit subscribers, exchange rates, metal prices
-                            google_trends = _fetch_data(get_google_trends, params={'kw_list': [coin_search_term], 'from_date': stop_day - timedelta(days=15), 'to_date': stop_day}, error_str=" - No " + "google trends" + " data for coin search term: " + coin_search_term + " from: " + str(stop_day - timedelta(days=15)) + " to: " + str(stop_day), empty_data=pd.DataFrame())
+                            google_trends = _fetch_data(get_google_trends_pt, params={'kw_list': [coin_search_term], 'from_date': stop_day - timedelta(days=15), 'to_date': stop_day}, error_str=" - No " + "google trends" + " data for coin search term: " + coin_search_term + " from: " + str(stop_day - timedelta(days=15)) + " to: " + str(stop_day), empty_data=pd.DataFrame())
                             google_trends_slope = trendline(google_trends.sort_values('date', inplace=False, ascending=True)[coin_search_term]) if not google_trends.empty else float("NaN") # sort_values is precautionary, should already be ascending:  # , reverse_to_ascending=True
                             portfolio['open'].loc[coin, 'gtrends_15d'] = google_trends_slope
                     portfolio['open'].loc[coin, ['current_date', 'current_price(btc)', 'current_roi(btc)', 'tsl_armed', 'tsl_max_price(btc)']] = [interval_time, price_in_btc, price_in_btc_change, tsl_armed, tsl_max_price_in_btc]
@@ -617,7 +613,7 @@ def update_portfolio_buy_and_sell_coins(portfolio, coins_to_buy, coins_to_sell, 
                         buy_date = datetime.now() # if not back_testing buying when run the algorithm, also if back running need to use datetime.now() and if real time running datetime.now() is closer to time order is processed due to api request limits, processing, etc.
                     if BUY_DATE_GTRENDS_15D:
                         coin_search_term = coin if not re.search('-', coin) else coin.split("-")[0]  # precautionary returns coin or coin symbol, assuming coins are unique to tickers / other similar search terms
-                        google_trends = _fetch_data(get_google_trends, params={'kw_list': [coin_search_term], 'from_date': stop_day - timedelta(days=15), 'to_date': stop_day}, error_str=" - No " + "google trends" + " data for coin search term: " + coin_search_term + " from: " + str(stop_day - timedelta(days=15)) + " to: " + str(stop_day), empty_data=pd.DataFrame())
+                        google_trends = _fetch_data(get_google_trends_pt, params={'kw_list': [coin_search_term], 'from_date': stop_day - timedelta(days=15), 'to_date': stop_day}, error_str=" - No " + "google trends" + " data for coin search term: " + coin_search_term + " from: " + str(stop_day - timedelta(days=15)) + " to: " + str(stop_day), empty_data=pd.DataFrame())
                         google_trends_slope = trendline(google_trends.sort_values('date', inplace=False, ascending=True)[coin_search_term]) if not google_trends.empty else float("NaN") # sort_values is precautionary, should already be ascending:  # , reverse_to_ascending=True
                     else:
                         google_trends_slope = 0
@@ -998,8 +994,6 @@ def portfolio_trading(portfolio, exchange, paper_trading=True, portfolio_usdt_va
             "\nPortfolio ROI (BTC) (Real): " + str(portfolio_calculate_roi(portfolio, open_positions=True, sold_positions=True, avoid_paper_positions=True)) + "\nPortfolio ROI (BTC) (All): " + str(portfolio_calculate_roi(portfolio, open_positions=True, sold_positions=True)) + "\nPortfolio Available " + BASE_PAIR.upper() + " Balance: " + str(portfolio['balance'][BASE_PAIR]) + "\n" if (datetime.utcnow().minute >= 30) and (datetime.utcnow().minute < 34) else ""))
         save_portfolio_backup(portfolio, remove_old_portfolio=(True if ((datetime.now().hour == 0) and (datetime.now().minute < 4)) else False)) # remove old portfolio always at beginning of next day (since portfolios are saved in local time, issue if local time is utc time then save_coins_data() will take too long for this logic to execute) (which is why not removing after run_portfolio_rr() executed) # save every 4 minutes for now, in case something happens
         time.sleep(240.0 - ((time.time() - start_time) % 240.0))
-
-import os # os.getcwd() # os.chdir()
 
 # as of 09/28/2020 changed portfolio_constants naming of file from (example) 100_100_15 to 100_-100_15
 def save_portfolio_backup(portfolio, remove_old_portfolio=False): # can add logic for different types of portfolio i.e. rr with different kinds of parameters i.e. different up and down moves

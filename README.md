@@ -2,7 +2,7 @@
 
 A Python package for a suite of quant-trading opportunities in crypto with API integration: Kucoin Exchange & Binance Exchange for storing crypto assets (cold storage) and spot and derivatives trading (hot storage), Coin Market Cap (CMC) & CoinGecko (CG) & Google Trends for data collection.
 
-Please see [quant-trading](https://github.com/speterlin/quant-trading) for writing scripts. Make sure to install package like this (with python>=3.12 and latest pip) in your environment or (recommended) virtual environment:
+Please see [quant-trading](https://github.com/speterlin/quant-trading) for writing scripts, backtesting, other analysis. Make sure to install package like this (with python>=3.12 and latest pip) in your environment or (recommended) virtual environment:
 ```python
 pip install speterlin-crypto
 ```
@@ -10,6 +10,8 @@ And then import package like this:
 ```python
 import speterlin_crypto.module1 as crypto
 ```
+
+For the following calls set up your Python virtual environment shell (where you quant trade or analyze stocks) and import packages like in [quant-trading#Python script for Crypto](https://github.com/speterlin/quant-trading?tab=readme-ov-file#python-script-for-crypto-programscryptocrypto_kucoin_your_username)
 
 ## Get and analyze your saved Portfolio
 
@@ -70,8 +72,11 @@ df_coins_2025_11_17.loc['hyperliquid']
 ## Get todays other (CoinGecko & Google Trends) data
 
 ```python
-import pandas as pd
+# Standard library imports
 import re
+
+# Third Party imports
+import pandas as pd
 
 coin, stop_day = 'hyperliquid', datetime.now()
 
@@ -83,7 +88,7 @@ coins = crypto._fetch_data(crypto.get_coins_markets_coingecko, params={'pages': 
 
 # 15 days Google Trends of a Ticker
 coin_search_term = coin if not re.search('-', coin) else coin.split("-")[0]
-google_trends = crypto._fetch_data(crypto.get_google_trends, params={'kw_list': [coin_search_term], 'from_date': stop_day - timedelta(days=15), 'to_date': stop_day}, error_str=" - No " + "google trends" + " data for coin search term: " + coin_search_term +
+google_trends = crypto._fetch_data(crypto.get_google_trends_pt, params={'kw_list': [coin_search_term], 'from_date': stop_day - timedelta(days=15), 'to_date': stop_day}, error_str=" - No " + "google trends" + " data for coin search term: " + coin_search_term +
  " from: " + str(stop_day - timedelta(days=15)) + " to: " + str(stop_day), empty_data=pd.DataFrame())
 google_trends_slope = crypto.trendline(google_trends.sort_values('date', inplace=False, ascending=True)[coin_search_term]) if not google_trends.empty else float("NaN")
 ```
@@ -94,7 +99,7 @@ Yet to implement AI analysis with crypto
 
 ## Algorithms
 
-Crypto has more volatility (higher risk, higher spikes in trading volume, higher swings in prices) than stocks, therefore algorithm limits are different than in [speterlin-stocks](https://github.com/speterlin/speterlin-stocks), and you have default parameters such as `'rank_rise_d_buy_limit': 1000` (limit outliers from entering your portfolio - ie prevent likely pump&dump scheme coins that jump more than 1000 ranks over interval days) in `portfolio['constants']` (see `examples/example.py`) and `portfolio_current_roi_restart={'engaged': False, 'limit': 0.15}` (ensure that portfolio has gained >=15% - 2x the value from `speterlin-stocks` - in paper_trading before entering real trading) in `stocks_crypto/module1.py#portfolio_trading`.
+Crypto has more volatility (higher risk, higher spikes in trading volume, higher swings in prices) than stocks, therefore algorithm limits are different than in [speterlin-stocks](https://github.com/speterlin/speterlin-stocks) and you have default parameters such as `'rank_rise_d_buy_limit': 1000` (limit outliers from entering your portfolio - ie prevent likely pump&dump scheme coins that jump more than 1000 ranks over interval days) in `portfolio['constants']` (see `examples/example.py`) and `portfolio_current_roi_restart={'engaged': False, 'limit': 0.15}` (ensure that portfolio has gained >=15% - 2x the value from `speterlin-stocks` - in paper_trading before entering real trading) in `stocks_crypto/module1.py#portfolio_trading`.
 
 ```python
 portfolios = {
