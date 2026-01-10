@@ -110,5 +110,5 @@ portfolios = {
 ## Send message to your Phone via Twilio
 
 ```python
-twilio_message = crypto._fetch_data(crypto.twilio_client.messages.create, params={'to': twilio_phone_to, 'from_': twilio_phone_from, 'body': "Q Trading @crypto: running on " + str(datetime.now()) + " :)"}, error_str=" - Twilio msg error to: " + twilio_phone_to + " on: " + str(datetime.now()), empty_data=None)
+twilio_message = crypto._fetch_data(crypto.twilio_client.messages.create, params={'to': crypto.twilio_phone_to, 'from_': crypto.twilio_phone_from, 'body': "Q Trading @crypto: running on " + str(datetime.now()) + " :)"}, error_str=" - Twilio msg error to: " + crypto.twilio_phone_to + " on: " + str(datetime.now()), empty_data=None)
 ```
