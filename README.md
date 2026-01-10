@@ -99,7 +99,7 @@ Yet to implement AI analysis with crypto
 
 ## Algorithms
 
-Crypto has more volatility (higher risk, higher spikes in trading volume, higher swings in prices) than stocks, therefore algorithm limits are different than in [speterlin-stocks](https://github.com/speterlin/speterlin-stocks) and you have default parameters such as `'rank_rise_d_buy_limit': 1000` (limit outliers from entering your portfolio - ie prevent likely pump&dump scheme coins that jump more than 1000 ranks over interval days) in `portfolio['constants']` (see `examples/example.py`) and `portfolio_current_roi_restart={'engaged': False, 'limit': 0.15}` (ensure that portfolio has gained >=15% - 2x the value from `speterlin-stocks` - in paper_trading before entering real trading) in `stocks_crypto/module1.py#portfolio_trading`.
+Crypto has more volatility (higher risk, higher spikes in trading volume, higher swings in prices) than stocks, therefore algorithm limits are different than in [speterlin-stocks](https://github.com/speterlin/speterlin-stocks) and you have default parameters such as `'rank_rise_d_buy_limit': 1000` (limit outliers from entering your portfolio - ie prevent likely pump&dump scheme coins that jump more than 1000 ranks over interval days) in `portfolio['constants']` (see `examples/example.py`) and `portfolio_current_roi_restart={'engaged': False, 'limit': 0.15}` (ensure that portfolio has gained >=15% - 2x the value from `speterlin-stocks` - in paper_trading before entering real trading) in `crypto.portfolio_trading()` call.
 
 ```python
 portfolios = {
