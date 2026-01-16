@@ -1,15 +1,19 @@
-import speterlin_crypto.module1 as crypto
-
-# IMPORT other script packages like in github.com/speterlin/quant-trading README.md#Python script for Crypto
+# IMPORT script packages like in github.com/speterlin/quant-trading README.md#Python script for Crypto
 
 import pandas as pd
 
+start_day = datetime.strptime('2024_01_09 17:00:00', '%Y_%m_%d %H:%M:%S')
+end_day = datetime.strptime('2026_01_09 13:00:00', '%Y_%m_%d %H:%M:%S')
+
 portfolio_rr = { # 100_100_15_[-0.3, 0.5, -0.2]_0.2_1_1000_1000
-    'constants': {'base_pair': 'usdt', 'type': 'rr', 'up_down_move': 10, 'days': 15, 'sl': -0.3, 'tsl_a': 0.5, 'tsl_p': -0.2, 'usdt_invest': 1000, 'usdt_invest_min': 100, 'coins_to_analyze': 1000, 'rank_rise_d_buy_limit': 1000, 'buy_date_gtrends_15d': True, 'end_day_open_positions_gtrends_15d': False, 'end_day_open_positions_kucoin_usdt_24h_vol': False, 'start_balance': {'usdt': 10000}, 'start_day': '2022-09-03'}, # assuming always enforcing btc_invest_min # maybe refactor move btc_invest and btc_invest_min out of constants since could be changing more frequently # maybe refactor coins_to_analyze to num_coins_to_analyze (but then have to worry about it being top num coins etc easier like this coins_to_analyze implicitly implies top x coins by market cap) # 'end_day_open_positions_binance_btc_24h_vol' # base_pair is for trading (balance, max_value, usdt_invest, usdt_invest_min, start_balance, back_testing), roi is in btc, keep track of both prices (usdt, btc) for roi calculation and optics
+    'constants': {'base_pair': 'usdt', 'type': 'rr', 'up_down_move': 10, 'days': 15, 'sl': -0.3, 'tsl_a': 0.5, 'tsl_p': -0.2, 'usdt_invest': 1000, 'usdt_invest_min': 100, 'coins_to_analyze': 1000, 'rank_rise_d_buy_limit': 1000, 'buy_date_gtrends_15d': True, 'end_day_open_positions_gtrends_15d': False, 'end_day_open_positions_kucoin_usdt_24h_vol': False, 'start_balance': {'usdt': 10000}, 'start_day': start_day.strftime('%Y-%m-%d')}, # maybe refactor move btc_invest and btc_invest_min out of constants since could be changing more frequently # maybe refactor coins_to_analyze to num_coins_to_analyze (but then have to worry about it being top num coins etc easier like this coins_to_analyze implicitly implies top x coins by market cap) # 'end_day_open_positions_binance_btc_24h_vol' # base_pair is for trading (balance, max_value, usdt_invest, usdt_invest_min, start_balance, back_testing), roi is in btc, keep track of both prices (usdt, btc) for roi calculation and optics
     'balance': {'usdt': 10000}, # 'btc': 1.0 # {'btc': 1.0, 'max': {'btc': 1.0}}
     'max_value': {'usdt': float("NaN")}, # 1.07 is btc balance in Binance on 9/14/2020
     'open': pd.DataFrame(columns=['symbol', 'position', 'buy_date', 'buy_price', 'buy_price(btc)', 'balance', 'current_date', 'current_price(btc)', 'current_roi(btc)', 'kucoin_usdt_24h_vol', 'gtrends_15d', 'rank_rise_d', 'tsl_armed', 'tsl_max_price(btc)', 'trade_notes', 'other_notes']).astype({'symbol': 'object', 'position': 'object', 'buy_date': 'datetime64[ns]', 'buy_price': 'float64', 'buy_price(btc)': 'float64', 'balance': 'float64', 'current_date': 'datetime64[ns]', 'current_price(btc)': 'float64', 'current_roi(btc)': 'float64', 'kucoin_usdt_24h_vol': 'float64', 'gtrends_15d': 'float64', 'rank_rise_d': 'float64', 'tsl_armed': 'bool', 'tsl_max_price(btc)': 'float64', 'trade_notes': 'object', 'other_notes': 'object'}), # 'binance_btc_24h_vol(btc)'
     'sold': pd.DataFrame(columns=['coin', 'symbol', 'position', 'buy_date', 'buy_price', 'buy_price(btc)', 'balance', 'sell_date', 'sell_price', 'sell_price(btc)', 'roi(btc)', 'kucoin_usdt_24h_vol', 'gtrends_15d', 'rank_rise_d', 'tsl_max_price(btc)', 'trade_notes', 'other_notes']).astype({'coin': 'object', 'symbol': 'object', 'position': 'object', 'buy_date': 'datetime64[ns]', 'buy_price': 'float64', 'buy_price(btc)': 'float64', 'balance': 'float64', 'sell_date': 'datetime64[ns]', 'sell_price': 'float64', 'sell_price(btc)': 'float64', 'roi(btc)': 'float64', 'kucoin_usdt_24h_vol': 'float64', 'gtrends_15d': 'float64', 'rank_rise_d': 'float64', 'tsl_max_price(btc)': 'float64', 'trade_notes': 'object', 'other_notes': 'object'}) # 'binance_btc_24h_vol(btc)'
 }
 
-portfolio_rr = crypto.run_portfolio_rr(portfolio=portfolio_rr, start_day=datetime.strptime('2022_09_03 17:00:00', '%Y_%m_%d %H:%M:%S'), end_day=datetime.strptime('2023_04_03 17:00:00', '%Y_%m_%d %H:%M:%S'), paper_trading=True, back_testing=True)
+# BACKTEST a single algorithm with different parameters on a time period like in github.com/speterlin/quant-trading README.md#Backtesting Crypto in Python virtual environment shell, OR BACKTEST a single algorithm with set parameters on a time period like below
+
+# RUN single portfolio
+portfolio_rr = crypto.run_portfolio_rr(portfolio=portfolio_rr, start_day=start_day, end_day=end_day, paper_trading=True, back_testing=True)
