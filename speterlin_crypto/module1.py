@@ -87,36 +87,24 @@ def get_coin_data_coinmarketcap(coin):
     site_url = 'https://www.coinmarketcap.com/currencies/' + coin
     resp = requests.get(site_url, headers=headers)
     soup = bs.BeautifulSoup(resp.text, 'html.parser')
-    # divs = soup.find_all("div", {"class": "sc-8755d3ba-0 sc-d6430309-0 boyZcw"}) #
-    # divs = soup.find_all("div", {"class": "sc-8755d3ba-0 iausdo"})
-    span_price = soup.find("span", {"class": "sc-65e7f566-0 WXGwg base-text"}) if soup.find("span", {"class": "sc-65e7f566-0 WXGwg base-text"}) else soup.find("span", {"class": "abbreviation-price"}) # 2025-07-01 some reason bitcoin has "sc-65e7f566-0 esyGGG base-text" # changed 2024-11-29 "sc-d1ede7e3-0 fsQm base-text" changed 2024-05-24 "sc-f70bb44c-0 jxpCgO base-text" "sc-16891c57-0 dxubiK base-text" # "sc-16891c57-0 imoWES coin-stats-header"
+    span_price = soup.find("span", {"class": "sc-c1554bc0-0 RbQXx base-text"}) if soup.find("span", {"class": "sc-c1554bc0-0 RbQXx base-text"}) else soup.find("span", {"class": "abbreviation-price"}) # stopped working 2026-01-22 "sc-65e7f566-0 WXGwg base-text" # 2025-07-01 some reason bitcoin "sc-65e7f566-0 esyGGG base-text" # 2024-11-29 "sc-d1ede7e3-0 fsQm base-text" # changed 2024-05-24 "sc-f70bb44c-0 jxpCgO base-text" "sc-16891c57-0 dxubiK base-text" # "sc-16891c57-0 imoWES coin-stats-header"
     price = span_price.text.strip().replace('$',"").replace(',',"") if span_price and span_price.text else float("NaN")
     market_data['price'] = float(price)
-    dl_statistics = soup.find("dl", {"class": "sc-65e7f566-0 cqLPHw CoinMetrics_xflex-container__O27KR"}) # changed 2024-11-29 "sc-65e7f566-0 eQBACe coin-metrics-table" changed 2024-07-19 "sc-d1ede7e3-0 bwRagp coin-metrics-table"# changed 2024-05-24 "sc-f70bb44c-0 iQEJet coin-metrics-table" "sc-16891c57-0 gPFIPZ coin-metrics-table" # "sc-8755d3ba-0 ddgngg" # "sc-8755d3ba-0 iausdo" # dl_statistics =  "sc-16891c57-0 hpRXnp"
+    dl_statistics = soup.find("dl", {"class": "sc-c1554bc0-0 ekvTUh CoinMetrics_xflex-container__O27KR"}) # stopped working 2026-01-22 "sc-65e7f566-0 cqLPHw CoinMetrics_xflex-container__O27KR" # changed 2024-11-29 "sc-65e7f566-0 eQBACe coin-metrics-table" # changed 2024-07-19 "sc-d1ede7e3-0 bwRagp coin-metrics-table" # changed 2024-05-24 "sc-f70bb44c-0 iQEJet coin-metrics-table" # "sc-16891c57-0 gPFIPZ coin-metrics-table" # "sc-8755d3ba-0 ddgngg" # "sc-8755d3ba-0 iausdo" # "sc-16891c57-0 hpRXnp"
     if not dl_statistics:
         print("Error scraping coinmarketcap data for coin: " + coin)
         return market_data
-    divs = dl_statistics.find_all('div') # convert_value True
     times_table = {'P': 1e15, 'T': 1e12, 'B': 1e9, 'M': 1e6, 'K': 1e3}
-    divs_major = dl_statistics.find_all('div', class_ = "sc-65e7f566-0 eQBACe")
-    max_supply_id = "_".join(divs_major[-1].find("div", class_="LongTextDisplay_content-wrapper__2ho_9").text.strip().replace('.', "").split()).lower()
-    max_supply_value = (divs_major[-1].find("div", class_="BasePopover_base__T5yOf popover-base") if divs_major[-1].find("div", class_="BasePopover_base__T5yOf popover-base") else divs_major[-1].find("div", class_="CoinMetrics_overflow-content__tlFu7")).text.strip().replace('$',"").replace(',',"").replace('%',"").replace('#',"").replace('(',"").replace(')',"").split(" ")[0]
-    try:
-        max_supply_value = float("NaN") if max_supply_value in ["∞", "-", "--", "No Data", "No"] else float(max_supply_value[:-1]) * times_table[max_supply_value[-1]] if re.findall(r"["+"".join(times_table.keys())+"]", max_supply_value) else float(max_supply_value)
-    except Exception as e:
-        print(str(e) + " - Value issue for id: " + max_supply_id + " for coin: " + coin + " retrying") # if id not in market_data:
-        max_supply_value = (divs_major[-1].find("div", class_="BasePopover_base__T5yOf popover-base") if divs_major[-1].find("div", class_="BasePopover_base__T5yOf popover-base") else divs_major[-1].find("div", class_="CoinMetrics_overflow-content__tlFu7")).text.strip().replace('$',"").replace(',',"").replace('%',"").replace('#',"").replace('(',"").replace(')',"").replace('\xa0'," ").split(" ")[-1] # assuming it's this error: {symbol} {quantity} MNT 1B instead of {quantity} {symbol} 1B MNT # '\xa0' is a non-break space
-        max_supply_value = float("NaN") if max_supply_value in ["∞", "-", "--", "No Data", "No"] else float(max_supply_value[:-1]) * times_table[max_supply_value[-1]] if re.findall(r"["+"".join(times_table.keys())+"]", max_supply_value) else float(max_supply_value) # value = float("NaN")
-    market_data[max_supply_id] = max_supply_value
-    # divs = soup.find_all("div", {"class": "sc-aef7b723-0 RdAHw"})
-    for div in divs:
-        # count = 0 # print(count) # count += 1
-        # if convert_value:
-        if div.find("dt"):
-            # print(div.text.strip()) # break
-            id = "_".join(div.find("dt").text.strip().replace('.', "").split()).lower() # fdv = fully_diluted_valuation (price x max supply)
-            value = (div.find("dd").find("span") if id != "vol/mkt_cap_(24h)" else div.find("dd")).text.strip().replace('$',"").replace(',',"").replace('%',"").replace('#',"").replace('(',"").replace(')',"").split(" ")[0] # .split("$")[-1] # re.split('; |, |\*|\n',a) re.split('$|%|[a-zA-Z]+', div.find("dd").text.strip()) .split("%").split(" ")
+    divs, div_count = dl_statistics.find_all("div", {"data-role": "group-item"}), 0 # {"class": "sc-c1554bc0-0 iSUEMj"} # "sc-aef7b723-0 RdAHw" # count = 0
+    for div in divs[:-1]:
+        div_count += 1
+        try: # should succeed debugging for inconsistent dl_statistics structure or outlier coins 
+            id = "_".join(div.find("div", class_="LongTextDisplay_content-wrapper__2ho_9").text.strip().replace('.', "").split()).lower()
+            value = div.find("div", class_="CoinMetrics_sib-content-wrapper__E8lu8").text.strip().replace('$',"").replace(',',"").replace('%',"").replace('#',"").replace('(',"").replace(')',"").split(" ")[0] #  if id != "vol/mkt_cap_(24h)" else div.find("dd") # "BasePopover_base__T5yOf popover-base" .find("span")
             # print(id + ": " + str(value))
+        except:
+            print(str(e) + " - Initial id or value issue for div: " + str(div_count) + " for coin: " + coin + " retrying")
+            continue
         if id in market_data:
             continue
         try:
