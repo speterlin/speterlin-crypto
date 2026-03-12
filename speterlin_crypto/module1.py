@@ -90,7 +90,7 @@ def get_coin_data_coinmarketcap(coin):
     span_price = soup.find("span", {"class": "sc-c1554bc0-0 RbQXx base-text"}) if soup.find("span", {"class": "sc-c1554bc0-0 RbQXx base-text"}) else soup.find("span", {"class": "abbreviation-price"}) # stopped working 2026-01-22 "sc-65e7f566-0 WXGwg base-text" # 2025-07-01 some reason bitcoin "sc-65e7f566-0 esyGGG base-text" # 2024-11-29 "sc-d1ede7e3-0 fsQm base-text" # changed 2024-05-24 "sc-f70bb44c-0 jxpCgO base-text" "sc-16891c57-0 dxubiK base-text" # "sc-16891c57-0 imoWES coin-stats-header"
     price = span_price.text.strip().replace('$',"").replace(',',"") if span_price and span_price.text else float("NaN")
     market_data['price'] = float(price)
-    dl_statistics = soup.find("dl", {"class": "sc-c1554bc0-0 ekvTUh CoinMetrics_xflex-container__O27KR"}) # stopped working 2026-01-22 "sc-65e7f566-0 cqLPHw CoinMetrics_xflex-container__O27KR" # changed 2024-11-29 "sc-65e7f566-0 eQBACe coin-metrics-table" # changed 2024-07-19 "sc-d1ede7e3-0 bwRagp coin-metrics-table" # changed 2024-05-24 "sc-f70bb44c-0 iQEJet coin-metrics-table" # "sc-16891c57-0 gPFIPZ coin-metrics-table" # "sc-8755d3ba-0 ddgngg" # "sc-8755d3ba-0 iausdo" # "sc-16891c57-0 hpRXnp"
+    dl_statistics = soup.find("dl", {"class": "sc-c1554bc0-0 clNNVq"}) # stopped working 2026-02-26 "sc-c1554bc0-0 ekvTUh CoinMetrics_xflex-container__O27KR" # stopped working 2026-01-22 "sc-65e7f566-0 cqLPHw CoinMetrics_xflex-container__O27KR" # changed 2024-11-29 "sc-65e7f566-0 eQBACe coin-metrics-table" # changed 2024-07-19 "sc-d1ede7e3-0 bwRagp coin-metrics-table" # changed 2024-05-24 "sc-f70bb44c-0 iQEJet coin-metrics-table" # "sc-16891c57-0 gPFIPZ coin-metrics-table" # "sc-8755d3ba-0 ddgngg" # "sc-8755d3ba-0 iausdo" # "sc-16891c57-0 hpRXnp"
     if not dl_statistics:
         print("Error scraping coinmarketcap data for coin: " + coin)
         return market_data
@@ -98,11 +98,11 @@ def get_coin_data_coinmarketcap(coin):
     divs, div_count = dl_statistics.find_all("div", {"data-role": "group-item"}), 0 # {"class": "sc-c1554bc0-0 iSUEMj"} # "sc-aef7b723-0 RdAHw" # count = 0
     for div in divs[:-1]:
         div_count += 1
-        try: # should succeed debugging for inconsistent dl_statistics structure or outlier coins 
+        try: # should succeed debugging for inconsistent dl_statistics structure or outlier coins
             id = "_".join(div.find("div", class_="LongTextDisplay_content-wrapper__2ho_9").text.strip().replace('.', "").split()).lower()
-            value = div.find("div", class_="CoinMetrics_sib-content-wrapper__E8lu8").text.strip().replace('$',"").replace(',',"").replace('%',"").replace('#',"").replace('(',"").replace(')',"").split(" ")[0] #  if id != "vol/mkt_cap_(24h)" else div.find("dd") # "BasePopover_base__T5yOf popover-base" .find("span")
+            value = div.find("div", class_="BasePopover_base__T5yOf popover-base").text.strip().replace('$',"").replace(',',"").replace('%',"").replace('#',"").replace('(',"").replace(')',"").split(" ")[0] #  if id != "vol/mkt_cap_(24h)" else div.find("dd") # stopped working 2026-02-26 "CoinMetrics_sib-content-wrapper__E8lu8" # "BasePopover_base__T5yOf popover-base" .find("span")
             # print(id + ": " + str(value))
-        except:
+        except Exception as e:
             print(str(e) + " - Initial id or value issue for div: " + str(div_count) + " for coin: " + coin + " retrying")
             continue
         if id in market_data:
@@ -110,7 +110,7 @@ def get_coin_data_coinmarketcap(coin):
         try:
             value = float("NaN") if value in ["∞", "-", "--", "No Data", "No"] else float(value)/100.0 if id == "vol/mkt_cap_(24h)" else float(value[:-1]) * times_table[value[-1]] if re.findall(r"["+"".join(times_table.keys())+"]", value) else float(value) # changed 2024-11-29 "volume/market_cap_(24h)" # re.search("".join(times_table.keys()), text_value): # text_values = re.split('[a-zA-Z]+', text_value) # " + "".join(times_table.keys()) + "
         except Exception as e:
-            print(str(e) + " - Value issue for id: " + id + " for coin: " + coin + " retrying") # if id not in market_data:
+            # print(str(e) + " - Value issue for id: " + id + " for coin: " + coin + " retrying") # if id not in market_data:
             value = div.find("dd").find("span").text.strip().replace('$',"").replace(',',"").replace('%',"").replace('#',"").replace('(',"").replace(')',"").replace('\xa0'," ").split(" ")[-1] # assuming vol/mkt_cap_(24h) passes fine and it's this error: {symbol} {quantity} MNT 1B instead of {quantity} {symbol} 1B MNT
             value = float("NaN") if value in ["∞", "-", "--", "No Data", "No"] else float(value[:-1]) * times_table[value[-1]] if re.findall(r"["+"".join(times_table.keys())+"]", value) else float(value) # not accounting for other potential errors # value = float("NaN")
         market_data[id] = value
@@ -170,6 +170,7 @@ def get_coins_markets_coinmarketcap(pages=10): # refactor add market cap
     data = {}
     market_cap_rank = 0
     headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10 7 4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36'} #
+    times_table = {'P': 1e15, 'T': 1e12, 'B': 1e9, 'M': 1e6, 'K': 1e3}
     for page in range(1, pages+1):
         site_url = 'https://www.coinmarketcap.com/?page=' + str(page)
         resp = requests.get(site_url, headers=headers)
@@ -180,17 +181,16 @@ def get_coins_markets_coinmarketcap(pages=10): # refactor add market cap
             # print(row)
             tds = row.find_all("td")
             a_link = row.find("a", {"class": "cmc-link"})
+            coin_id = a_link['href'].split('/currencies/')[-1].replace('/','')
             if a_link.find_all("p"):
                 links = a_link.find_all("p") # links = a_link.find_all("p") if a_link.find_all("p") else a_link.find_all("span")
-                coin_id = "-".join(links[0].text.strip().split()).lower() # mayve refactor error for coins like tether (combines tether-usdt instead of actual name tether) # coin_id = links[0].text.strip().lower() if links[0].text.strip() else links[0].text.strip()
                 coin_symbol = links[1].text.strip().lower() # coin_symbol = links[1].text.strip().lower()
             else:
                 links = a_link.find_all("span")
-                coin_id = "-".join(links[1].text.strip().split()).lower()
                 coin_symbol = links[2].text.strip().lower()
                 # price =
             # print(coin_id + ": " + coin_symbol + ", " + str(tds[3].text.strip()))
-            market_cap_rank = (market_cap_rank + 1) if coin_id != 'coinmarketcap-20-index-dtf' else market_cap_rank # market_cap_rank = float(tds[1].text.strip()) if tds[1].text.strip() else float("NaN") #
+            market_cap_rank = (market_cap_rank + 1) if coin_id != 'coinmarketcap-20-index' else market_cap_rank # 'coinmarketcap-20-index-dtf' # market_cap_rank = float(tds[1].text.strip()) if tds[1].text.strip() else float("NaN") #
             try:
                 price = float(tds[3].text.strip().replace('$',"").replace(',',"")) # if tds[3].text.strip() else float("NaN")
             except Exception as e:
@@ -199,7 +199,7 @@ def get_coins_markets_coinmarketcap(pages=10): # refactor add market cap
             try:
                 market_cap = float(tds[7].text.split('$')[-1].replace('$',"").replace(',',"")) if tds[7].text.split('$')[-1] else float("NaN")
                 volume_24h = float(tds[8].find("a").text.strip().replace('$',"").replace(',',"")) if tds[8].find("a").text.strip() else float("NaN") # find("a") since there is also volume listed in coin
-                circulating_supply = float(tds[9].text.split(" ")[0].strip().replace(',',"")) if tds[9].text.split(" ")[0].strip() else float("NaN")
+                circulating_supply = float(tds[9].text.split(" ")[0].strip().replace(',',"")[:-1]) * times_table[tds[9].text.split(" ")[0].strip().replace(',',"")[-1]] if tds[9].text.split(" ")[0].strip() else float("NaN") # if re.findall(r"["+"".join(times_table.keys())+"]", circulating_supply_value)
             except Exception as e:
                 print(str(e) + " - Market Cap / Volume (24h) / Circulating Supply issue(s) for coin: " + coin_id + " with market cap rank: " + str(market_cap_rank))
                 market_cap, volume_24h, circulating_supply = [float("NaN")]*3
