@@ -22,6 +22,7 @@ from pytrends.request import TrendReq
 __all__ = [
     "_fetch_data",
     "trendline",
+    "parse_value",
     "get_coin_data_coinmarketcap",
     # "get_coin_data_coingecko",
     "get_coin_data",
@@ -80,41 +81,57 @@ def trendline(data, order=1, reverse_to_ascending=False):
     slope = coeffs[-2]
     return float(slope)
 
-# coinmarktcap detected automation 403 forbidden after 1 day
-def get_coin_data_coinmarketcap(coin):
-    market_data = {}
+def parse_value(text): # chatgpt generated but self-checked and edited
+    text = text.strip()
+    # Explicit missing-value markers.
+    if not text or text.lower() in {"∞", "-", "--", "no data", "no", "n/a", "na", "null"}:
+        return float("NaN")
+    # Extract the first number and optional magnitude suffix.
+    match = re.search(r"[-+]?\d[\d,]*(?:\.\d+)?\s*[KMBTP]?", text, re.IGNORECASE,)
+    if not match:
+        return float("NaN")
+    number_match = re.fullmatch(r"\s*([-+]?\d[\d,]*(?:\.\d+)?)\s*([KMBTP]?)\s*", match.group(), re.IGNORECASE,)
+    if not number_match:
+        return float("NaN")
+    number = float(number_match.group(1).replace(",", ""))
+    suffix = number_match.group(2).upper()
+    multiplier = {'P': 1e15, 'T': 1e12, 'B': 1e9, 'M': 1e6, 'K': 1e3, '': 1.0,}[suffix]
+    result = number * multiplier
+    # Convert percentages to decimal fractions.
+    if "%" in text:
+        result /= 100.0
+    return result
+
+def get_coin_data_coinmarketcap(coin): # chatgpt generated but self-checked and edited
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36'}
     site_url = 'https://www.coinmarketcap.com/currencies/' + coin
-    resp = requests.get(site_url, headers=headers)
-    soup = bs.BeautifulSoup(resp.text, 'html.parser')
-    span_price = soup.find("span", {"class": "sc-c1554bc0-0 RbQXx base-text"}) if soup.find("span", {"class": "sc-c1554bc0-0 RbQXx base-text"}) else soup.find("span", {"class": "abbreviation-price"}) # stopped working 2026-01-22 "sc-65e7f566-0 WXGwg base-text" # 2025-07-01 some reason bitcoin "sc-65e7f566-0 esyGGG base-text" # 2024-11-29 "sc-d1ede7e3-0 fsQm base-text" # changed 2024-05-24 "sc-f70bb44c-0 jxpCgO base-text" "sc-16891c57-0 dxubiK base-text" # "sc-16891c57-0 imoWES coin-stats-header"
-    price = span_price.text.strip().replace('$',"").replace(',',"") if span_price and span_price.text else float("NaN")
-    market_data['price'] = float(price)
-    dl_statistics = soup.find("dl", {"class": "sc-c1554bc0-0 clNNVq"}) # stopped working 2026-02-26 "sc-c1554bc0-0 ekvTUh CoinMetrics_xflex-container__O27KR" # stopped working 2026-01-22 "sc-65e7f566-0 cqLPHw CoinMetrics_xflex-container__O27KR" # changed 2024-11-29 "sc-65e7f566-0 eQBACe coin-metrics-table" # changed 2024-07-19 "sc-d1ede7e3-0 bwRagp coin-metrics-table" # changed 2024-05-24 "sc-f70bb44c-0 iQEJet coin-metrics-table" # "sc-16891c57-0 gPFIPZ coin-metrics-table" # "sc-8755d3ba-0 ddgngg" # "sc-8755d3ba-0 iausdo" # "sc-16891c57-0 hpRXnp"
-    if not dl_statistics:
-        print("Error scraping coinmarketcap data for coin: " + coin)
-        return market_data
-    times_table = {'P': 1e15, 'T': 1e12, 'B': 1e9, 'M': 1e6, 'K': 1e3}
-    divs, div_count = dl_statistics.find_all("div", {"data-role": "group-item"}), 0 # {"class": "sc-c1554bc0-0 iSUEMj"} # "sc-aef7b723-0 RdAHw" # count = 0
-    for div in divs[:-1]:
-        div_count += 1
-        try: # should succeed debugging for inconsistent dl_statistics structure or outlier coins
-            id = "_".join(div.find("div", class_="LongTextDisplay_content-wrapper__2ho_9").text.strip().replace('.', "").split()).lower()
-            value = div.find("div", class_="BasePopover_base__T5yOf popover-base").text.strip().replace('$',"").replace(',',"").replace('%',"").replace('#',"").replace('(',"").replace(')',"").split(" ")[0] #  if id != "vol/mkt_cap_(24h)" else div.find("dd") # stopped working 2026-02-26 "CoinMetrics_sib-content-wrapper__E8lu8" # "BasePopover_base__T5yOf popover-base" .find("span")
-            # print(id + ": " + str(value))
-        except Exception as e:
-            print(str(e) + " - Initial id or value issue for div: " + str(div_count) + " for coin: " + coin + " retrying")
-            continue
-        if id in market_data:
-            continue
-        try:
-            value = float("NaN") if value in ["∞", "-", "--", "No Data", "No"] else float(value)/100.0 if id == "vol/mkt_cap_(24h)" else float(value[:-1]) * times_table[value[-1]] if re.findall(r"["+"".join(times_table.keys())+"]", value) else float(value) # changed 2024-11-29 "volume/market_cap_(24h)" # re.search("".join(times_table.keys()), text_value): # text_values = re.split('[a-zA-Z]+', text_value) # " + "".join(times_table.keys()) + "
-        except Exception as e:
-            # print(str(e) + " - Value issue for id: " + id + " for coin: " + coin + " retrying") # if id not in market_data:
-            value = div.find("dd").find("span").text.strip().replace('$',"").replace(',',"").replace('%',"").replace('#',"").replace('(',"").replace(')',"").replace('\xa0'," ").split(" ")[-1] # assuming vol/mkt_cap_(24h) passes fine and it's this error: {symbol} {quantity} MNT 1B instead of {quantity} {symbol} 1B MNT
-            value = float("NaN") if value in ["∞", "-", "--", "No Data", "No"] else float(value[:-1]) * times_table[value[-1]] if re.findall(r"["+"".join(times_table.keys())+"]", value) else float(value) # not accounting for other potential errors # value = float("NaN")
-        market_data[id] = value
-    return market_data
+    # The nine keys to return, in the desired order.
+    statistics = {}
+    response = requests.get(site_url, headers=headers, timeout=30)
+    response.raise_for_status()
+    soup = bs.BeautifulSoup(response.text, "html.parser")
+    # Extract the current price.
+    price_element = soup.find("span", string=re.compile(r"^\s*\$[\d,]+(?:\.\d+)?\s*$"))
+    if price_element:
+        statistics["price"] = parse_value(price_element.get_text())
+    # Extract the eight statistics.
+    dl_statistics = soup.find("dl", {"class": "sc-c1554bc0-0 jMmNG"})
+    if dl_statistics:
+        # hack job to get max supply (missing from dl_statistics.find_all("dt"))
+        max_supply_elements = [label if 'Max. supply' in label.get_text(" ", strip=True) else None for label in dl_statistics.find_all("div", {"class": "sc-c1554bc0-0 emxVGQ"})] # label.find("div", class_="LongTextDisplay_content-wrapper__2ho_9")
+        max_supply_element = [x for x in max_supply_elements if x is not None][0]
+        if max_supply_element:
+            statistics["max_supply"] = parse_value(max_supply_element.get_text(strip=True)) # no other numbers in string so no need " " in .get_text() or for .split(" ")
+        for label in dl_statistics.find_all("dt"):
+            key = "_".join(label.get_text(" ", strip=True).replace('.', "").split()).lower()
+            if not key:
+                continue
+            # Look for the value in the label's parent container.
+            container = label.parent
+            value = container.find("dd") if container else None
+            if value:
+                statistics[key] = parse_value(value.get_text(" ", strip=True).split(" ")[0])
+    return statistics
 
 # coingecko detected automation 403 forbidden on 2023-05-02 04:27:25.340357 ~several days after implementation, also on 2025-12-08
 def get_coin_data_coingecko(coin):
@@ -233,7 +250,7 @@ def get_coins_markets_coingecko(pages=10):
 
 def save_coins_data(date, pages=10): # date is in format '%Y-%m-%d' # maybe refactor and add date if code block runs at a datetime.now() which is close to the next day, if runs longer no need to add date since market runs 24/7 # number of pages should be constant
     coins = _fetch_data(get_coins_markets_coinmarketcap, params={'pages': pages}, error_str=" - No " + "" + " coins markets data with pages: " + str(pages) + " on: " + str(datetime.now()), empty_data={}) # refactor all - ensure error_str have date: # 'currency': 'btc',
-    df_coins = pd.DataFrame(columns = ["Market Cap Rank", "Facebook Likes", "Twitter Followers", "Reddit Subscribers", "Reddit Posts & Comments 48h", "Developer Stars", "Developer Issues", "Alexa Rank", "Price", "Price (BTC)", "Market Cap", "24h Volume", "24h Volume / Market Cap", "Fully Diluted Valuation", "Supply: Circulating", "Supply: Max", "Supply: Total"]) # maybe refactor and add columns which measure other KPIs (look to stocks.py for motivation)
+    df_coins = pd.DataFrame(columns = ["Market Cap Rank", "Facebook Likes", "Twitter Followers", "Reddit Subscribers", "Reddit Posts & Comments 48h", "Developer Stars", "Developer Issues", "Alexa Rank", "Price", "Price (BTC)", "Market Cap", "Unlocked Market Cap", "24h Volume", "24h Volume / Market Cap", "Fully Diluted Valuation", "Liquidity / Market Cap", "Supply: Circulating", "Supply: Max", "Supply: Total", "Treasury Holdings", "Holders"]) # maybe refactor and add columns which measure other KPIs (look to stocks.py)
     count = 0
     for coin_id, symbol_and_market_data in coins.items(): # here and throughout where iterating over get_coins_markets_cg assuming that all necessary keys are there (not checking for example if 'market_cap_rank', 'current_price', 'symbol' in coin) (has been the case in all cases observed)
         count += 1
@@ -258,19 +275,23 @@ def save_coins_data(date, pages=10): # date is in format '%Y-%m-%d' # maybe refa
                 coin_data["price"] if "market_cap" in coin_data else symbol_and_market_data['price'], # float("NaN")
                 float("NaN"), # coin_data['market_data']['current_price']['btc'] if coin_data['market_data']['current_price']['btc'] else float("NaN"),
                 coin_data["market_cap"] if "market_cap" in coin_data else symbol_and_market_data['market_cap'], # coin_data['market_data']['market_cap']['usd'] if coin_data['market_data']['market_cap']['usd'] else float("NaN"),
+                coin_data["unlocked_mkt_cap"] if "unlocked_mkt_cap" in coin_data else float("NaN"),
                 coin_data["volume_(24h)"] if "volume_(24h)" in coin_data else symbol_and_market_data['volume_24h'], # coin_data['market_data']['24_hour_trading_vol'] if coin_data['market_data']['24_hour_trading_vol'] else float("NaN"),
                 coin_data["vol/mkt_cap_(24h)"] if "vol/mkt_cap_(24h)" in coin_data else float("NaN"),
                 coin_data["fdv"] if "fdv" in coin_data else float("NaN"), # coin_data['market_data']['fully_diluted_valuation'] if ('fully_diluted_valuation' in coin_data['market_data'] and coin_data['market_data']['fully_diluted_valuation']) else float("NaN"),
+                coin_data["liq/mkt_cap"] if "liq/mkt_cap" in coin_data else float("NaN"),
                 coin_data["circulating_supply"] if "circulating_supply" in coin_data else symbol_and_market_data['circulating_supply'],
                 coin_data["max_supply"] if "max_supply" in coin_data else float("NaN"),
-                coin_data["total_supply"] if "total_supply" in coin_data else float("NaN")
+                coin_data["total_supply"] if "total_supply" in coin_data else float("NaN"),
+                coin_data["treasury_holdings"] if "treasury_holdings" in coin_data else float("NaN"),
+                coin_data["holders"] if "holders" in coin_data else float("NaN") # Holders statistic represents the estimated number of blockchain addresses
             ]
     f = open('data/crypto/saved_coins_data/' + 'coins_' + date + '.pckl', 'wb') # 2020_06_02, format is '%Y-%m-%d' # datetime.now().strftime('%Y-%m-%d')
     pd.to_pickle(df_coins, f)
     f.close()
     return df_coins
 
-# 02/24/2020 is first day with 100 coins, 02/27/2020 is first day with 200 coins, 03/09/2020 is first day with 250 coins, 07/04/2020 is first day with 1000 coins, 2022-04-25->26 frozen, 2024-07-28->29 frozen, 2025-02-02->11 Jackson Hole some error, 2025-02-20->24 KCS retrieval error
+# 02/24/2020 is first day with 100 coins, 02/27/2020 is first day with 200 coins, 03/09/2020 is first day with 250 coins, 07/04/2020 is first day with 1000 coins, 2022-04-25->26 frozen, 2024-07-28->29 frozen, 2025-02-02->11 Jackson Hole some error, 2025-02-20->24 KCS retrieval error, 2026-06-23->28: cmc changed protection (AWS WAF (Web Application Firewall) challenge: CoinMarketCap is detecting requests as an automated client and serving a JavaScript challenge instead of the real HTML.), 2026-09-15->10-15: cmc changed their html (no saved individual coin data)
 def get_saved_coins_data(date): # date is a string in format '%Y-%m-%d'
     try:
         f = open('data/crypto/saved_coins_data/' + 'coins_' + date + '.pckl', 'rb')
