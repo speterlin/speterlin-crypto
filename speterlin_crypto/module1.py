@@ -115,10 +115,10 @@ def get_coin_data_coinmarketcap(coin): # chatgpt generated but self-checked and 
     if price_element:
         statistics["price"] = parse_value(price_element.get_text())
     # Extract the eight statistics.
-    dl_statistics = soup.find("dl", {"class": "sc-c1554bc0-0 jMmNG"})
+    dl_statistics = soup.find("dl", {"class": "Box-sc-937528eb-0 dHkyDk"}) # not working as of 2026-10-20 "sc-c1554bc0-0 jMmNG"}
     if dl_statistics:
         # hack job to get max supply (missing from dl_statistics.find_all("dt"))
-        max_supply_elements = [label if 'Max. supply' in label.get_text(" ", strip=True) else None for label in dl_statistics.find_all("div", {"class": "sc-c1554bc0-0 emxVGQ"})] # label.find("div", class_="LongTextDisplay_content-wrapper__2ho_9")
+        max_supply_elements = [label if 'Max. supply' in label.get_text(" ", strip=True) else None for label in dl_statistics.find_all("div", {"class": "Box-sc-937528eb-0 jivptS"})] # not working as of 2026-10-20 "sc-c1554bc0-0 emxVGQ" # label.find("div", class_="LongTextDisplay_content-wrapper__2ho_9")
         max_supply_element = [x for x in max_supply_elements if x is not None][0]
         if max_supply_element:
             statistics["max_supply"] = parse_value(max_supply_element.get_text(strip=True)) # no other numbers in string so no need " " in .get_text() or for .split(" ")
